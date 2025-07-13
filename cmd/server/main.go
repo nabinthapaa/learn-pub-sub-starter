@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -21,10 +23,33 @@ func main() {
 	}
 	defer connection.Close()
 	channel, _ := connection.Channel()
-	pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
-		IsPaused: true,
-	})
 	fmt.Println("Connection was successful")
+
+loop:
+	for {
+		gamelogic.PrintServerHelp()
+		inputs := gamelogic.GetInput()
+		if len(inputs) == 0 {
+			continue
+		}
+		fmt.Println(inputs)
+		switch strings.Join(inputs, "") {
+		case "pause":
+			pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
+				IsPaused: true,
+			})
+
+		case "resume":
+			pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
+				IsPaused: false,
+			})
+		case "quit":
+			break loop
+		default:
+			fmt.Println("Did not understand the command")
+			continue
+		}
+	}
 
 	osChan := make(chan os.Signal, 1)
 	signal.Notify(osChan, os.Interrupt)
