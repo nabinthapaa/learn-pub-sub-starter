@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -35,9 +36,49 @@ func main() {
 		return
 	}
 
+	gameState := gamelogic.NewGameState(username)
+	gamelogic.PrintClientHelp()
+loop:
+	for {
+		input := gamelogic.GetInput()
+
+		switch true {
+		case slices.Contains(input, "move"):
+			_, err = gameState.CommandMove(input)
+			if err != nil {
+				fmt.Println("Command not allowed")
+				continue
+			}
+
+		case slices.Contains(input, "spawn"):
+			err := gameState.CommandSpawn(input)
+			if err != nil {
+				fmt.Println("Command not allowed")
+				continue
+			}
+
+		case slices.Contains(input, "status"):
+			gameState.CommandStatus()
+
+		case slices.Contains(input, "help"):
+			gamelogic.PrintClientHelp()
+
+		case slices.Contains(input, "spam"):
+			fmt.Println("Spamming not allowed yet!")
+
+		case slices.Contains(input, "quit"):
+			break loop
+
+		default:
+			fmt.Println("Did not understand the command")
+			continue
+
+		}
+	}
+
 	fmt.Println("✅ Queue successfully declared and bound.")
 
-	osChan := make(chan os.Signal)
+	osChan := make(chan os.Signal, 1)
 	signal.Notify(osChan, os.Interrupt)
 	<-osChan
 }
