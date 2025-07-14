@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
-	"strings"
+	"slices"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -22,8 +20,10 @@ func main() {
 		return
 	}
 	defer connection.Close()
+
 	channel, _ := connection.Channel()
-	fmt.Println("Connection was successful")
+
+	pubsub.DeclareAndBind(connection, routing.ExchangePerilTopic, "game_logs", "game_logs.*", pubsub.Durable)
 
 loop:
 	for {
@@ -33,25 +33,23 @@ loop:
 			continue
 		}
 		fmt.Println(inputs)
-		switch strings.Join(inputs, "") {
-		case "pause":
+		switch true {
+		case slices.Contains(inputs, "pause"):
 			pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
 				IsPaused: true,
 			})
 
-		case "resume":
+		case slices.Contains(inputs, "resume"):
 			pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
 				IsPaused: false,
 			})
-		case "quit":
+
+		case slices.Contains(inputs, "quit"):
 			break loop
+
 		default:
 			fmt.Println("Did not understand the command")
 			continue
 		}
 	}
-
-	osChan := make(chan os.Signal, 1)
-	signal.Notify(osChan, os.Interrupt)
-	<-osChan
 }

@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 	"slices"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
@@ -29,15 +27,16 @@ func main() {
 		fmt.Println("Something went wrong with user input")
 		return
 	}
+	gameState := gamelogic.NewGameState(username)
+
 	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
-	_, _, err = pubsub.DeclareAndBind(connection, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.Transient)
+	err = pubsub.SubscribeToJSON(connection, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.Transient, handlerPause(gameState))
 	if err != nil {
-		fmt.Println("❌ Queue declaration/binding error:", err)
+		fmt.Println("❌ Subscription error:", err)
 		return
 	}
-
-	gameState := gamelogic.NewGameState(username)
 	gamelogic.PrintClientHelp()
+
 loop:
 	for {
 		input := gamelogic.GetInput()
@@ -77,8 +76,12 @@ loop:
 	}
 
 	fmt.Println("✅ Queue successfully declared and bound.")
+}
 
-	osChan := make(chan os.Signal, 1)
-	signal.Notify(osChan, os.Interrupt)
-	<-osChan
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(state routing.PlayingState) {
+		fmt.Println("Sate: ", state)
+		defer fmt.Print("> ")
+		gs.HandlePause(state)
+	}
 }
